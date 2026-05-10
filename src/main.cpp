@@ -10,6 +10,6 @@ int main() {
   std::cout << "$ ";
 string command="";
 std::cin>>command;
-std"::cout<<"{"<<command<<"}"<<": command not found"<<std::unitbuf;
+std::cout<<"{"<<command<<"}"<<": command not found"<<std::unitbuf;
 
 }
