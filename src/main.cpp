@@ -20,10 +20,10 @@ int main() {
       std::cout<<m<<" is a shell builtin"<<std::endl;
     }
     else{
-std:cout << m << ": command not found" << std::endl;
+std::cout << m << ": command not found" << std::endl;
     }
   }
   else
-  std:cout << input << ": command not found" << std::endl;}
+  std::cout << input << ": command not found" << std::endl;}
 
   }
