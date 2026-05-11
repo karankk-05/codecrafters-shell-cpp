@@ -14,5 +14,6 @@ int main() {
   else if (input.size()>=4&&input.substr(0,4)=="echo") {
     std::cout<<input.substr(5,input.size()-5)<<std::endl;
   }
-  std::cout << input << ": command not found" << std::endl;}
+  //std::cout << input << ": command not found" << std::endl;}
+
   }
