@@ -15,5 +15,5 @@ int main() {
     std::cout<<input.substr(5,input.size()-5)<<std::endl;
   }
   //std::cout << input << ": command not found" << std::endl;}
-
+}
   }
