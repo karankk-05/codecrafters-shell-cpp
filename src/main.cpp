@@ -494,6 +494,19 @@ int main() {
     }
 
     if (tokens[0] == "jobs") {
+      // First, update status of all jobs
+      for (auto &job : jobs_list) {
+        if (job.status == "Running") {
+          int status = 0;
+          pid_t res = waitpid(job.pid, &status, WNOHANG);
+          if (res > 0) {
+            job.status = "Done";
+          }
+        }
+      }
+
+      // Then, print and filter out "Done" jobs
+      std::vector<Job> active_jobs;
       for (size_t i = 0; i < jobs_list.size(); ++i) {
         char marker = ' ';
         if (i == jobs_list.size() - 1) {
@@ -505,8 +518,19 @@ int main() {
         if (status_field.size() < 24) {
           status_field.append(24 - status_field.size(), ' ');
         }
-        std::cout << "[" << jobs_list[i].job_id << "]" << marker << "  " << status_field << jobs_list[i].command << std::endl;
+        
+        std::string cmd = jobs_list[i].command;
+        if (jobs_list[i].status == "Running") {
+          cmd += " &";
+        }
+        
+        std::cout << "[" << jobs_list[i].job_id << "]" << marker << "  " << status_field << cmd << std::endl;
+        
+        if (jobs_list[i].status == "Running") {
+          active_jobs.push_back(jobs_list[i]);
+        }
       }
+      jobs_list = active_jobs;
       restoreRedirects();
       continue;
     }
@@ -526,7 +550,12 @@ int main() {
       pid_t pid = runExternalCommand(tokens, redirects, in_background);
       if (in_background) {
         std::cout << "[" << next_job_id << "] " << pid << std::endl;
-        jobs_list.push_back({next_job_id, pid, input, "Running"});
+        std::string cmd_str = input;
+        if (!cmd_str.empty() && cmd_str.back() == '&') {
+          cmd_str.pop_back();
+          cmd_str = trim(cmd_str);
+        }
+        jobs_list.push_back({next_job_id, pid, cmd_str, "Running"});
         next_job_id++;
       }
     } else {
