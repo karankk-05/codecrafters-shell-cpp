@@ -238,16 +238,79 @@ char *command_generator(const char *text, int state) {
   return nullptr;
 }
 
-char **shell_completion(const char *text, int start, int end) {
-  // Only autocomplete command names at the beginning of the line
-  if (start == 0) {
-    rl_attempted_completion_over = 1;
-    return rl_completion_matches(text, command_generator);
+static std::unordered_map<std::string, std::string> completions;
+
+static std::string getFirstWord(const std::string &line) {
+  std::string word;
+  size_t first_space = line.find_first_of(" \t");
+  if (first_space != std::string::npos) {
+    word = line.substr(0, first_space);
+  } else {
+    word = line;
+  }
+  if (word.size() >= 2 && ((word.front() == '\'' && word.back() == '\'') || (word.front() == '"' && word.back() == '"'))) {
+    word = word.substr(1, word.size() - 2);
+  }
+  return word;
+}
+
+static std::vector<std::string> runCompleterScript(const std::string &script_path) {
+  std::vector<std::string> candidates;
+  FILE *pipe = popen(script_path.c_str(), "r");
+  if (!pipe) {
+    return candidates;
+  }
+  char buffer[256];
+  while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+    std::string line(buffer);
+    if (!line.empty() && line.back() == '\n') {
+      line.pop_back();
+    }
+    if (!line.empty()) {
+      candidates.push_back(line);
+    }
+  }
+  pclose(pipe);
+  return candidates;
+}
+
+static std::vector<std::string> completer_candidates;
+static size_t completer_index;
+
+char *completer_generator(const char *text, int state) {
+  if (!state) {
+    completer_index = 0;
+  }
+  if (completer_index < completer_candidates.size()) {
+    return strdup(completer_candidates[completer_index++].c_str());
   }
   return nullptr;
 }
 
-static std::unordered_map<std::string, std::string> completions;
+char **shell_completion(const char *text, int start, int end) {
+  if (start == 0) {
+    rl_attempted_completion_over = 1;
+    return rl_completion_matches(text, command_generator);
+  } else {
+    std::string line_str(rl_line_buffer);
+    std::string cmd = getFirstWord(line_str);
+    auto it = completions.find(cmd);
+    if (it != completions.end()) {
+      rl_attempted_completion_over = 1;
+      std::vector<std::string> raw_candidates = runCompleterScript(it->second);
+      std::vector<std::string> filtered;
+      std::string prefix(text);
+      for (const auto &c : raw_candidates) {
+        if (c.compare(0, prefix.size(), prefix) == 0) {
+          filtered.push_back(c);
+        }
+      }
+      completer_candidates = filtered;
+      return rl_completion_matches(text, completer_generator);
+    }
+  }
+  return nullptr;
+}
 
 int main() {
   std::cout << std::unitbuf;
