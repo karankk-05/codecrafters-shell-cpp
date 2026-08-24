@@ -253,6 +253,7 @@ static std::vector<Job> jobs_list;
 static std::vector<std::string> shell_history;
 static size_t last_appended_history_idx = 0;
 static std::unordered_map<std::string, std::string> completions;
+static std::unordered_map<std::string, std::string> shell_variables;
 
 static std::string shellQuote(const std::string &str) {
   std::string result = "'";
@@ -551,7 +552,21 @@ static void executeBuiltin(const std::vector<std::string> &tokens) {
   }
   if (tokens[0] == "declare") {
     if (tokens.size() > 2 && tokens[1] == "-p") {
-      std::cout << "declare: " << tokens[2] << ": not found" << std::endl;
+      auto it = shell_variables.find(tokens[2]);
+      if (it != shell_variables.end()) {
+        std::cout << "declare -- " << it->first << "=\"" << it->second << "\"" << std::endl;
+      } else {
+        std::cout << "declare: " << tokens[2] << ": not found" << std::endl;
+      }
+    } else {
+      for (size_t i = 1; i < tokens.size(); ++i) {
+        size_t eq = tokens[i].find('=');
+        if (eq != std::string::npos) {
+          std::string name = tokens[i].substr(0, eq);
+          std::string value = tokens[i].substr(eq + 1);
+          shell_variables[name] = value;
+        }
+      }
     }
     return;
   }
@@ -936,7 +951,21 @@ int main() {
 
     if (tokens[0] == "declare") {
       if (tokens.size() > 2 && tokens[1] == "-p") {
-        std::cout << "declare: " << tokens[2] << ": not found" << std::endl;
+        auto it = shell_variables.find(tokens[2]);
+        if (it != shell_variables.end()) {
+          std::cout << "declare -- " << it->first << "=\"" << it->second << "\"" << std::endl;
+        } else {
+          std::cout << "declare: " << tokens[2] << ": not found" << std::endl;
+        }
+      } else {
+        for (size_t i = 1; i < tokens.size(); ++i) {
+          size_t eq = tokens[i].find('=');
+          if (eq != std::string::npos) {
+            std::string name = tokens[i].substr(0, eq);
+            std::string value = tokens[i].substr(eq + 1);
+            shell_variables[name] = value;
+          }
+        }
       }
       restoreRedirects();
       continue;
