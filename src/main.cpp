@@ -361,7 +361,9 @@ int main() {
     }
 
     if (tokens[0] == "complete") {
-      // Placeholder for programmable completions: do nothing for now
+      if (tokens.size() > 2 && tokens[1] == "-p") {
+        std::cout << "complete: " << tokens[2] << ": no completion specification" << std::endl;
+      }
       restoreRedirects();
       continue;
     }
