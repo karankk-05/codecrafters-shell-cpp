@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <fcntl.h>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -493,6 +494,20 @@ static void executeBuiltin(const std::vector<std::string> &tokens) {
     return;
   }
   if (tokens[0] == "history") {
+    if (tokens.size() > 2 && tokens[1] == "-r") {
+      std::ifstream infile(tokens[2]);
+      if (infile.is_open()) {
+        std::string line;
+        while (std::getline(infile, line)) {
+          line = trim(line);
+          if (!line.empty()) {
+            shell_history.push_back(line);
+            add_history(line.c_str());
+          }
+        }
+      }
+      return;
+    }
     size_t limit = shell_history.size();
     if (tokens.size() > 1) {
       try {
@@ -802,6 +817,21 @@ int main() {
     }
 
     if (tokens[0] == "history") {
+      if (tokens.size() > 2 && tokens[1] == "-r") {
+        std::ifstream infile(tokens[2]);
+        if (infile.is_open()) {
+          std::string line;
+          while (std::getline(infile, line)) {
+            line = trim(line);
+            if (!line.empty()) {
+              shell_history.push_back(line);
+              add_history(line.c_str());
+            }
+          }
+        }
+        restoreRedirects();
+        continue;
+      }
       size_t limit = shell_history.size();
       if (tokens.size() > 1) {
         try {
