@@ -241,6 +241,14 @@ char *command_generator(const char *text, int state) {
   return nullptr;
 }
 
+struct Job {
+  int job_id;
+  pid_t pid;
+  std::string command;
+  std::string status;
+};
+
+static std::vector<Job> jobs_list;
 static std::unordered_map<std::string, std::string> completions;
 
 static std::string shellQuote(const std::string &str) {
@@ -486,7 +494,19 @@ int main() {
     }
 
     if (tokens[0] == "jobs") {
-      // Placeholder for jobs builtin: do nothing for now
+      for (size_t i = 0; i < jobs_list.size(); ++i) {
+        char marker = ' ';
+        if (i == jobs_list.size() - 1) {
+          marker = '+';
+        } else if (i == jobs_list.size() - 2) {
+          marker = '-';
+        }
+        std::string status_field = jobs_list[i].status;
+        if (status_field.size() < 24) {
+          status_field.append(24 - status_field.size(), ' ');
+        }
+        std::cout << "[" << jobs_list[i].job_id << "]" << marker << "  " << status_field << jobs_list[i].command << std::endl;
+      }
       restoreRedirects();
       continue;
     }
@@ -505,7 +525,9 @@ int main() {
     if (!resolved.empty()) {
       pid_t pid = runExternalCommand(tokens, redirects, in_background);
       if (in_background) {
-        std::cout << "[" << next_job_id++ << "] " << pid << std::endl;
+        std::cout << "[" << next_job_id << "] " << pid << std::endl;
+        jobs_list.push_back({next_job_id, pid, input, "Running"});
+        next_job_id++;
       }
     } else {
       std::cout << tokens[0] << ": not found" << std::endl;
