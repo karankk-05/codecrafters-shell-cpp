@@ -420,6 +420,21 @@ static int getNextJobId() {
   return max_id + 1;
 }
 
+static bool isValidIdentifier(const std::string &name) {
+  if (name.empty()) {
+    return false;
+  }
+  if (!std::isalpha(name[0]) && name[0] != '_') {
+    return false;
+  }
+  for (size_t i = 1; i < name.size(); ++i) {
+    if (!std::isalnum(name[i]) && name[i] != '_') {
+      return false;
+    }
+  }
+  return true;
+}
+
 static bool isBuiltin(const std::string &cmd) {
   return cmd == "echo" || cmd == "exit" || cmd == "pwd" || cmd == "cd" || cmd == "type" || cmd == "complete" || cmd == "jobs" || cmd == "history" || cmd == "declare";
 }
@@ -564,7 +579,15 @@ static void executeBuiltin(const std::vector<std::string> &tokens) {
         if (eq != std::string::npos) {
           std::string name = tokens[i].substr(0, eq);
           std::string value = tokens[i].substr(eq + 1);
-          shell_variables[name] = value;
+          if (isValidIdentifier(name)) {
+            shell_variables[name] = value;
+          } else {
+            std::cout << "declare: `" << tokens[i] << "': not a valid identifier" << std::endl;
+          }
+        } else {
+          if (!isValidIdentifier(tokens[i])) {
+            std::cout << "declare: `" << tokens[i] << "': not a valid identifier" << std::endl;
+          }
         }
       }
     }
@@ -963,7 +986,15 @@ int main() {
           if (eq != std::string::npos) {
             std::string name = tokens[i].substr(0, eq);
             std::string value = tokens[i].substr(eq + 1);
-            shell_variables[name] = value;
+            if (isValidIdentifier(name)) {
+              shell_variables[name] = value;
+            } else {
+              std::cout << "declare: `" << tokens[i] << "': not a valid identifier" << std::endl;
+            }
+          } else {
+            if (!isValidIdentifier(tokens[i])) {
+              std::cout << "declare: `" << tokens[i] << "': not a valid identifier" << std::endl;
+            }
           }
         }
       }
