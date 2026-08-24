@@ -157,7 +157,7 @@ static int openRedirect(const Redirect &r) {
   return open(r.file.c_str(), flags, 0644);
 }
 
-static void runExternalCommand(const std::vector<std::string> &tokens, const std::vector<Redirect> &redirects) {
+static pid_t runExternalCommand(const std::vector<std::string> &tokens, const std::vector<Redirect> &redirects, bool in_background) {
   std::vector<char *> argv;
   argv.reserve(tokens.size() + 1);
   for (const auto &token : tokens) {
@@ -178,8 +178,11 @@ static void runExternalCommand(const std::vector<std::string> &tokens, const std
     _exit(127);
   }
 
-  int status = 0;
-  waitpid(pid, &status, 0);
+  if (!in_background) {
+    int status = 0;
+    waitpid(pid, &status, 0);
+  }
+  return pid;
 }
 
 char *command_generator(const char *text, int state) {
@@ -353,6 +356,8 @@ int main() {
 
   rl_attempted_completion_function = shell_completion;
 
+  int next_job_id = 1;
+
   while (true) {
     char *line = readline("$ ");
     if (line == nullptr) {
@@ -486,12 +491,22 @@ int main() {
       continue;
     }
 
+    // Check if the command should run in the background
+    bool in_background = false;
+    if (!tokens.empty() && tokens.back() == "&") {
+      in_background = true;
+      tokens.pop_back();
+    }
+
     // Restore redirects before running external command (it handles its own)
     restoreRedirects();
 
     std::string resolved = findExecutableInPath(tokens[0]);
     if (!resolved.empty()) {
-      runExternalCommand(tokens, redirects);
+      pid_t pid = runExternalCommand(tokens, redirects, in_background);
+      if (in_background) {
+        std::cout << "[" << next_job_id++ << "] " << pid << std::endl;
+      }
     } else {
       std::cout << tokens[0] << ": not found" << std::endl;
     }
