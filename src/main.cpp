@@ -416,6 +416,138 @@ static int getNextJobId() {
   return max_id + 1;
 }
 
+static std::vector<std::string> splitPipeline(const std::string &input) {
+  std::vector<std::string> stages;
+  std::string current;
+  size_t i = 0;
+  bool in_single_quote = false;
+  bool in_double_quote = false;
+  while (i < input.size()) {
+    char c = input[i];
+    if (c == '\'' && !in_double_quote) {
+      in_single_quote = !in_single_quote;
+      current += c;
+      i++;
+    } else if (c == '"' && !in_single_quote) {
+      in_double_quote = !in_double_quote;
+      current += c;
+      i++;
+    } else if (c == '\\' && !in_single_quote) {
+      current += c;
+      i++;
+      if (i < input.size()) {
+        current += input[i];
+        i++;
+      }
+    } else if (c == '|' && !in_single_quote && !in_double_quote) {
+      stages.push_back(current);
+      current.clear();
+      i++;
+    } else {
+      current += c;
+      i++;
+    }
+  }
+  stages.push_back(current);
+  return stages;
+}
+
+static void runPipeline(const std::vector<std::string> &stages_raw, const std::string &original_input) {
+  std::vector<std::vector<std::string>> parsed_stages;
+  for (const auto &s : stages_raw) {
+    auto t = splitCommand(trim(s));
+    if (!t.empty()) {
+      parsed_stages.push_back(t);
+    }
+  }
+
+  if (parsed_stages.empty()) return;
+
+  // Check background
+  bool in_background = false;
+  if (!parsed_stages.back().empty() && parsed_stages.back().back() == "&") {
+    in_background = true;
+    parsed_stages.back().pop_back();
+  }
+
+  size_t num_cmds = parsed_stages.size();
+  std::vector<pid_t> pids(num_cmds);
+  int prev_pipe_read = -1;
+
+  for (size_t i = 0; i < num_cmds; ++i) {
+    int cur_pipe[2];
+    if (i < num_cmds - 1) {
+      if (pipe(cur_pipe) < 0) {
+        perror("pipe");
+        return;
+      }
+    }
+
+    pid_t pid = fork();
+    if (pid == 0) {
+      if (i > 0) {
+        dup2(prev_pipe_read, 0);
+        close(prev_pipe_read);
+      }
+      if (i < num_cmds - 1) {
+        dup2(cur_pipe[1], 1);
+        close(cur_pipe[0]);
+        close(cur_pipe[1]);
+      }
+
+      std::vector<Redirect> redirects;
+      parseRedirects(parsed_stages[i], redirects);
+      for (const auto &r : redirects) {
+        int fd = openRedirect(r);
+        if (fd >= 0) {
+          dup2(fd, r.fd);
+          close(fd);
+        }
+      }
+
+      std::vector<char *> argv;
+      argv.reserve(parsed_stages[i].size() + 1);
+      for (const auto &token : parsed_stages[i]) {
+        argv.push_back(const_cast<char *>(token.c_str()));
+      }
+      argv.push_back(nullptr);
+
+      std::string resolved = findExecutableInPath(argv[0]);
+      if (!resolved.empty()) {
+        execvp(resolved.c_str(), argv.data());
+      } else {
+        std::cerr << argv[0] << ": not found" << std::endl;
+      }
+      _exit(127);
+    }
+
+    pids[i] = pid;
+    if (i > 0) {
+      close(prev_pipe_read);
+    }
+    if (i < num_cmds - 1) {
+      close(cur_pipe[1]);
+      prev_pipe_read = cur_pipe[0];
+    }
+  }
+
+  if (!in_background) {
+    for (pid_t pid : pids) {
+      int status = 0;
+      waitpid(pid, &status, 0);
+    }
+  } else {
+    int job_id = getNextJobId();
+    std::cout << "[" << job_id << "] " << pids.back() << std::endl;
+    std::string cmd_str = original_input;
+    if (!cmd_str.empty() && cmd_str.back() == '&') {
+      cmd_str.pop_back();
+      cmd_str = trim(cmd_str);
+    }
+    jobs_list.push_back({job_id, pids.back(), cmd_str, "Running"});
+  }
+}
+
 int main() {
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
@@ -434,6 +566,12 @@ int main() {
     input = trim(input);
 
     if (input.empty()) {
+      continue;
+    }
+
+    auto pipeline_stages = splitPipeline(input);
+    if (pipeline_stages.size() > 1) {
+      runPipeline(pipeline_stages, input);
       continue;
     }
 
