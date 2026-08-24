@@ -472,6 +472,8 @@ int main() {
           }
         } else if (tokens[1] == "-C" && tokens.size() > 3) {
           completions[tokens[3]] = tokens[2];
+        } else if (tokens[1] == "-r") {
+          completions.erase(tokens[2]);
         }
       }
       restoreRedirects();
