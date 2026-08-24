@@ -2,11 +2,20 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
-#include <vector>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 
-std::string findExecutableInPath(const std::string &command) {
+static std::string trim(const std::string &s) {
+  const auto begin = s.find_first_not_of(" \t\r\n");
+  if (begin == std::string::npos) {
+    return "";
+  }
+  const auto end = s.find_last_not_of(" \t\r\n");
+  return s.substr(begin, end - begin + 1);
+}
+
+static std::string findExecutableInPath(const std::string &command) {
   const char *pathEnv = std::getenv("PATH");
   if (pathEnv == nullptr) {
     return "";
@@ -45,6 +54,7 @@ int main() {
     std::cout << "$ ";
     std::string input;
     std::getline(std::cin, input);
+    input = trim(input);
 
     if (input.empty()) {
       continue;
@@ -54,13 +64,13 @@ int main() {
       return 0;
     }
 
-    if (input.rfind("echo", 0) == 0 && (input.size() == 4 || input[4] == ' ')) {
+    if (input == "echo" || input.rfind("echo ", 0) == 0) {
       std::cout << input.substr(5) << std::endl;
       continue;
     }
 
-    if (input.rfind("type", 0) == 0 && (input.size() == 4 || input[4] == ' ')) {
-      std::string command = input.substr(5);
+    if (input == "type" || input.rfind("type ", 0) == 0) {
+      std::string command = trim(input.substr(4));
       if (command == "type" || command == "echo" || command == "exit") {
         std::cout << command << " is a shell builtin" << std::endl;
       } else {
@@ -74,12 +84,11 @@ int main() {
       continue;
     }
 
-    std::string command = input;
-    std::string resolved = findExecutableInPath(command);
+    std::string resolved = findExecutableInPath(input);
     if (!resolved.empty()) {
-      std::cout << command << " is " << resolved << std::endl;
+      std::cout << input << " is " << resolved << std::endl;
     } else {
-      std::cout << command << ": not found" << std::endl;
+      std::cout << input << ": not found" << std::endl;
     }
   }
 }
