@@ -1,3 +1,0 @@
-echo test1
-echo test2
-history -w output.txt

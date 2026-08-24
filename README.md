@@ -1,34 +1,13 @@
 [![progress-banner](https://backend.codecrafters.io/progress/shell/b4a05d7f-7e20-4b6e-8d47-669826065218)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
 
-This is a starting point for C++ solutions to the
-["Build Your Own Shell" Challenge](https://app.codecrafters.io/courses/shell/overview).
+# Build Your Own Shell (C++)
 
-In this challenge, you'll build your own POSIX compliant shell that's capable of
-interpreting shell commands, running external programs and builtin commands like
-cd, pwd, echo and more. Along the way, you'll learn about shell command parsing,
-REPLs, builtin commands, and more.
+A POSIX-compliant shell implementation written in C++17 for the CodeCrafters "Build Your Own Shell" challenge.
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
-
-# Passing the first stage
-
-The entry point for your `shell` implementation is in `src/main.cpp`. Study and
-uncomment the relevant code, then run the command below to execute the tests on
-our servers:
-
-```sh
-codecrafters submit
-```
-
-Time to move on to the next stage!
-
-# Stage 2 & beyond
-
-Note: This section is for stages 2 and beyond.
-
-1. Ensure you have `cmake` installed locally
-1. Run `./your_program.sh` to run your program, which is implemented in
-   `src/main.cpp`.
-1. Run `codecrafters submit` to submit your solution to CodeCrafters. Test
-   output will be streamed to your terminal.
+## Features Implemented
+- **Builtin Commands**: `echo`, `exit`, `type`, `pwd`, `cd`, `history` (with `-c`, `-r`, `-w`, `-a`), `declare` (variable assignment & `-p`).
+- **Executable Search**: Path resolution and execution of external binaries found in `$PATH`.
+- **Quote & Escape Parsing**: Single quotes (`'...'`), double quotes (`"..."`), backslash escaping (`\`), and parameter expansion (`$VAR` and `${VAR}`).
+- **I/O Redirection**: Redirecting stdout/stderr using `>`, `1>`, `2>`, `>>`, `1>>`, and `2>>`.
+- **Pipelines**: Multistage command chaining via `|`.
+- **Interactive REPL**: Autocomplete for builtins and binaries using GNU Readline, history management, and `HISTFILE` persistence across sessions.
