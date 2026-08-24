@@ -46,6 +46,13 @@ static std::vector<std::string> splitCommand(const std::string &input) {
         current.clear();
       }
       i++;
+    } else if (c == '\\') {
+      // Backslash outside quotes: next character is literal
+      i++;
+      if (i < input.size()) {
+        current += input[i];
+        i++;
+      }
     } else {
       current += c;
       i++;
