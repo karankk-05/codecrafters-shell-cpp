@@ -121,7 +121,7 @@ int main() {
 
     if (tokens[0] == "type") {
       std::string command = tokens.size() > 1 ? tokens[1] : "";
-      if (command == "type" || command == "echo" || command == "exit") {
+      if (command == "type" || command == "echo" || command == "exit" || command == "pwd") {
         std::cout << command << " is a shell builtin" << std::endl;
       } else {
         std::string resolved = findExecutableInPath(command);
@@ -131,6 +131,11 @@ int main() {
           std::cout << command << ": not found" << std::endl;
         }
       }
+      continue;
+    }
+
+    if (tokens[0] == "pwd") {
+      std::cout << fs::current_path().string() << std::endl;
       continue;
     }
 
