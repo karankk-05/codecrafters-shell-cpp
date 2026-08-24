@@ -192,7 +192,7 @@ char *command_generator(const char *text, int state) {
     std::string prefix(text);
     
     // Builtins
-    std::vector<std::string> all_builtins = {"echo", "exit", "pwd", "cd", "type", "complete"};
+    std::vector<std::string> all_builtins = {"echo", "exit", "pwd", "cd", "type", "complete", "jobs"};
     for (const auto &b : all_builtins) {
       if (b.compare(0, prefix.size(), prefix) == 0) {
         matches.push_back(b);
@@ -422,7 +422,7 @@ int main() {
 
     if (tokens[0] == "type") {
       std::string command = tokens.size() > 1 ? tokens[1] : "";
-      if (command == "type" || command == "echo" || command == "exit" || command == "pwd" || command == "cd" || command == "complete") {
+      if (command == "type" || command == "echo" || command == "exit" || command == "pwd" || command == "cd" || command == "complete" || command == "jobs") {
         std::cout << command << " is a shell builtin" << std::endl;
       } else {
         std::string resolved = findExecutableInPath(command);
@@ -476,6 +476,12 @@ int main() {
           completions.erase(tokens[2]);
         }
       }
+      restoreRedirects();
+      continue;
+    }
+
+    if (tokens[0] == "jobs") {
+      // Placeholder for jobs builtin: do nothing for now
       restoreRedirects();
       continue;
     }
