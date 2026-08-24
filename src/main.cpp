@@ -688,16 +688,46 @@ static void runPipeline(const std::vector<std::string> &stages_raw, const std::s
   }
 }
 
+static void saveHistoryOnExit() {
+  const char *histfile = std::getenv("HISTFILE");
+  if (histfile) {
+    std::ofstream outfile(histfile, std::ios_base::app);
+    if (outfile.is_open()) {
+      for (size_t i = last_appended_history_idx; i < shell_history.size(); ++i) {
+        outfile << shell_history[i] << "\n";
+      }
+    }
+    last_appended_history_idx = shell_history.size();
+  }
+}
+
 int main() {
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
 
   rl_attempted_completion_function = shell_completion;
 
+  const char *histfile = std::getenv("HISTFILE");
+  if (histfile) {
+    std::ifstream infile(histfile);
+    if (infile.is_open()) {
+      std::string line;
+      while (std::getline(infile, line)) {
+        line = trim(line);
+        if (!line.empty()) {
+          shell_history.push_back(line);
+          add_history(line.c_str());
+        }
+      }
+    }
+    last_appended_history_idx = shell_history.size();
+  }
+
   while (true) {
     reapJobs(false);
     char *line = readline("$ ");
     if (line == nullptr) {
+      saveHistoryOnExit();
       break;
     }
     std::string input(line);
@@ -755,6 +785,7 @@ int main() {
     };
 
     if (tokens[0] == "exit") {
+      saveHistoryOnExit();
       return 0;
     }
 

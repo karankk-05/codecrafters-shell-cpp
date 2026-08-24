@@ -1,6 +1,4 @@
 echo init1
 echo init2
-echo test1
-history -a hist.txt
-echo test2
-history -a hist.txt
+history
+exit
