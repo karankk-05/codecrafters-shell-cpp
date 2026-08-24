@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <fcntl.h>
 #include <filesystem>
 #include <iostream>
 #include <sstream>
@@ -110,7 +111,49 @@ static std::string findExecutableInPath(const std::string &command) {
   return "";
 }
 
-static void runExternalCommand(const std::vector<std::string> &tokens) {
+struct Redirect {
+  int fd = -1;          // 1 = stdout, 2 = stderr
+  std::string file;
+  bool append = false;
+};
+
+static void parseRedirects(std::vector<std::string> &tokens, std::vector<Redirect> &redirects) {
+  std::vector<std::string> cleaned;
+  for (size_t i = 0; i < tokens.size(); ++i) {
+    if (tokens[i] == ">" || tokens[i] == "1>") {
+      if (i + 1 < tokens.size()) {
+        redirects.push_back({1, tokens[i + 1], false});
+        i++;
+      }
+    } else if (tokens[i] == "2>") {
+      if (i + 1 < tokens.size()) {
+        redirects.push_back({2, tokens[i + 1], false});
+        i++;
+      }
+    } else if (tokens[i] == ">>" || tokens[i] == "1>>") {
+      if (i + 1 < tokens.size()) {
+        redirects.push_back({1, tokens[i + 1], true});
+        i++;
+      }
+    } else if (tokens[i] == "2>>") {
+      if (i + 1 < tokens.size()) {
+        redirects.push_back({2, tokens[i + 1], true});
+        i++;
+      }
+    } else {
+      cleaned.push_back(tokens[i]);
+    }
+  }
+  tokens = cleaned;
+}
+
+static int openRedirect(const Redirect &r) {
+  int flags = O_WRONLY | O_CREAT;
+  flags |= r.append ? O_APPEND : O_TRUNC;
+  return open(r.file.c_str(), flags, 0644);
+}
+
+static void runExternalCommand(const std::vector<std::string> &tokens, const std::vector<Redirect> &redirects) {
   std::vector<char *> argv;
   argv.reserve(tokens.size() + 1);
   for (const auto &token : tokens) {
@@ -120,6 +163,13 @@ static void runExternalCommand(const std::vector<std::string> &tokens) {
 
   pid_t pid = fork();
   if (pid == 0) {
+    for (const auto &r : redirects) {
+      int fd = openRedirect(r);
+      if (fd >= 0) {
+        dup2(fd, r.fd);
+        close(fd);
+      }
+    }
     execvp(argv[0], argv.data());
     _exit(127);
   }
@@ -147,6 +197,37 @@ int main() {
       continue;
     }
 
+    // Parse redirects from tokens
+    std::vector<Redirect> redirects;
+    parseRedirects(tokens, redirects);
+
+    // Setup redirects for builtins
+    int saved_stdout = -1, saved_stderr = -1;
+    for (const auto &r : redirects) {
+      int fd = openRedirect(r);
+      if (fd >= 0) {
+        if (r.fd == 1) {
+          saved_stdout = dup(1);
+          dup2(fd, 1);
+        } else if (r.fd == 2) {
+          saved_stderr = dup(2);
+          dup2(fd, 2);
+        }
+        close(fd);
+      }
+    }
+
+    auto restoreRedirects = [&]() {
+      if (saved_stdout >= 0) {
+        dup2(saved_stdout, 1);
+        close(saved_stdout);
+      }
+      if (saved_stderr >= 0) {
+        dup2(saved_stderr, 2);
+        close(saved_stderr);
+      }
+    };
+
     if (tokens[0] == "exit") {
       return 0;
     }
@@ -160,6 +241,7 @@ int main() {
         output += tokens[i];
       }
       std::cout << output << std::endl;
+      restoreRedirects();
       continue;
     }
 
@@ -175,11 +257,13 @@ int main() {
           std::cout << command << ": not found" << std::endl;
         }
       }
+      restoreRedirects();
       continue;
     }
 
     if (tokens[0] == "pwd") {
       std::cout << fs::current_path().string() << std::endl;
+      restoreRedirects();
       continue;
     }
 
@@ -198,12 +282,16 @@ int main() {
           std::cout << "cd: " << tokens[1] << ": No such file or directory" << std::endl;
         }
       }
+      restoreRedirects();
       continue;
     }
 
+    // Restore redirects before running external command (it handles its own)
+    restoreRedirects();
+
     std::string resolved = findExecutableInPath(tokens[0]);
     if (!resolved.empty()) {
-      runExternalCommand(tokens);
+      runExternalCommand(tokens, redirects);
     } else {
       std::cout << tokens[0] << ": not found" << std::endl;
     }
