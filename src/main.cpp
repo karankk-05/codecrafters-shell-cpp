@@ -9,6 +9,7 @@
 #include <string>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <unordered_map>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -246,6 +247,8 @@ char **shell_completion(const char *text, int start, int end) {
   return nullptr;
 }
 
+static std::unordered_map<std::string, std::string> completions;
+
 int main() {
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
@@ -361,8 +364,17 @@ int main() {
     }
 
     if (tokens[0] == "complete") {
-      if (tokens.size() > 2 && tokens[1] == "-p") {
-        std::cout << "complete: " << tokens[2] << ": no completion specification" << std::endl;
+      if (tokens.size() > 2) {
+        if (tokens[1] == "-p") {
+          auto it = completions.find(tokens[2]);
+          if (it != completions.end()) {
+            std::cout << "complete -C '" << it->second << "' " << tokens[2] << std::endl;
+          } else {
+            std::cout << "complete: " << tokens[2] << ": no completion specification" << std::endl;
+          }
+        } else if (tokens[1] == "-C" && tokens.size() > 3) {
+          completions[tokens[3]] = tokens[2];
+        }
       }
       restoreRedirects();
       continue;
