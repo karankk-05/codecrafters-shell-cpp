@@ -2,7 +2,7 @@
 
 # Build Your Own Shell (C++)
 
-A POSIX-compliant shell implementation written in C++17 for the CodeCrafters "Build Your Own Shell" challenge.
+A POSIX-compliant shell implementation written in C++17 for the CodeCrafters "Build Your Own Shell" project.
 
 ## Features Implemented
 - **Builtin Commands**: `echo`, `exit`, `type`, `pwd`, `cd`, `history` (with `-c`, `-r`, `-w`, `-a`), `declare` (variable assignment & `-p`).
