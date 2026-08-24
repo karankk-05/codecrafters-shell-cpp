@@ -287,9 +287,9 @@ static std::string getPrevWord(const std::string &line, int start) {
   return prev_word;
 }
 
-static std::vector<std::string> runCompleterScript(const std::string &script_path, const std::string &cmd, const std::string &word, const std::string &prev_word) {
+static std::vector<std::string> runCompleterScript(const std::string &script_path, const std::string &cmd, const std::string &word, const std::string &prev_word, const std::string &line_str, int cursor_pos) {
   std::vector<std::string> candidates;
-  std::string run_cmd = shellQuote(script_path) + " " + shellQuote(cmd) + " " + shellQuote(word) + " " + shellQuote(prev_word);
+  std::string run_cmd = "COMP_LINE=" + shellQuote(line_str) + " COMP_POINT=" + std::to_string(cursor_pos) + " " + shellQuote(script_path) + " " + shellQuote(cmd) + " " + shellQuote(word) + " " + shellQuote(prev_word);
   FILE *pipe = popen(run_cmd.c_str(), "r");
   if (!pipe) {
     return candidates;
@@ -333,7 +333,7 @@ char **shell_completion(const char *text, int start, int end) {
       rl_attempted_completion_over = 1;
       std::string word(text);
       std::string prev_word = getPrevWord(line_str, start);
-      std::vector<std::string> raw_candidates = runCompleterScript(it->second, cmd, word, prev_word);
+      std::vector<std::string> raw_candidates = runCompleterScript(it->second, cmd, word, prev_word, line_str, rl_point);
       std::vector<std::string> filtered;
       for (const auto &c : raw_candidates) {
         if (c.compare(0, word.size(), word) == 0) {
