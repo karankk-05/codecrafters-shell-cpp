@@ -249,6 +249,7 @@ struct Job {
 };
 
 static std::vector<Job> jobs_list;
+static std::vector<std::string> shell_history;
 static std::unordered_map<std::string, std::string> completions;
 
 static std::string shellQuote(const std::string &str) {
@@ -492,15 +493,8 @@ static void executeBuiltin(const std::vector<std::string> &tokens) {
     return;
   }
   if (tokens[0] == "history") {
-    HISTORY_STATE *state = history_get_history_state();
-    if (state) {
-      for (int i = 0; i < state->length; ++i) {
-        HIST_ENTRY *entry = history_get(i + state->offset);
-        if (entry) {
-          printf("%5d  %s\n", i + 1, entry->line);
-        }
-      }
-      free(state);
+    for (size_t i = 0; i < shell_history.size(); ++i) {
+      printf("%5d  %s\n", (int)(i + 1), shell_history[i].c_str());
     }
     return;
   }
@@ -665,6 +659,7 @@ int main() {
     }
 
     add_history(input.c_str());
+    shell_history.push_back(input);
 
     auto pipeline_stages = splitPipeline(input);
     if (pipeline_stages.size() > 1) {
@@ -792,15 +787,8 @@ int main() {
     }
 
     if (tokens[0] == "history") {
-      HISTORY_STATE *state = history_get_history_state();
-      if (state) {
-        for (int i = 0; i < state->length; ++i) {
-          HIST_ENTRY *entry = history_get(i + state->offset);
-          if (entry) {
-            printf("%5d  %s\n", i + 1, entry->line);
-          }
-        }
-        free(state);
+      for (size_t i = 0; i < shell_history.size(); ++i) {
+        printf("%5d  %s\n", (int)(i + 1), shell_history[i].c_str());
       }
       restoreRedirects();
       continue;
