@@ -141,8 +141,15 @@ int main() {
 
     if (tokens[0] == "cd") {
       if (tokens.size() > 1) {
+        std::string target = tokens[1];
+        if (target == "~") {
+          const char *home = std::getenv("HOME");
+          if (home) {
+            target = home;
+          }
+        }
         std::error_code ec;
-        fs::current_path(tokens[1], ec);
+        fs::current_path(target, ec);
         if (ec) {
           std::cout << "cd: " << tokens[1] << ": No such file or directory" << std::endl;
         }
