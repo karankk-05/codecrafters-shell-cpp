@@ -403,13 +403,24 @@ static void reapJobs(bool print_running) {
   jobs_list = active_jobs;
 }
 
+static int getNextJobId() {
+  if (jobs_list.empty()) {
+    return 1;
+  }
+  int max_id = 0;
+  for (const auto &job : jobs_list) {
+    if (job.job_id > max_id) {
+      max_id = job.job_id;
+    }
+  }
+  return max_id + 1;
+}
+
 int main() {
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
 
   rl_attempted_completion_function = shell_completion;
-
-  int next_job_id = 1;
 
   while (true) {
     reapJobs(false);
@@ -559,14 +570,14 @@ int main() {
     if (!resolved.empty()) {
       pid_t pid = runExternalCommand(tokens, redirects, in_background);
       if (in_background) {
-        std::cout << "[" << next_job_id << "] " << pid << std::endl;
+        int job_id = getNextJobId();
+        std::cout << "[" << job_id << "] " << pid << std::endl;
         std::string cmd_str = input;
         if (!cmd_str.empty() && cmd_str.back() == '&') {
           cmd_str.pop_back();
           cmd_str = trim(cmd_str);
         }
-        jobs_list.push_back({next_job_id, pid, cmd_str, "Running"});
-        next_job_id++;
+        jobs_list.push_back({job_id, pid, cmd_str, "Running"});
       }
     } else {
       std::cout << tokens[0] << ": not found" << std::endl;
