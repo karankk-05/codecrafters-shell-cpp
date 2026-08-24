@@ -25,13 +25,21 @@ static std::vector<std::string> splitCommand(const std::string &input) {
   while (i < input.size()) {
     char c = input[i];
     if (c == '\'') {
-      // Single-quoted string: read until closing quote
-      i++; // skip opening quote
+      // Single-quoted string: everything is literal
+      i++;
       while (i < input.size() && input[i] != '\'') {
         current += input[i];
         i++;
       }
-      if (i < input.size()) i++; // skip closing quote
+      if (i < input.size()) i++;
+    } else if (c == '"') {
+      // Double-quoted string: everything is literal (for now)
+      i++;
+      while (i < input.size() && input[i] != '"') {
+        current += input[i];
+        i++;
+      }
+      if (i < input.size()) i++;
     } else if (c == ' ' || c == '\t') {
       if (!current.empty()) {
         tokens.push_back(current);
