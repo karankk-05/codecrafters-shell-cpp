@@ -550,6 +550,9 @@ static void executeBuiltin(const std::vector<std::string> &tokens) {
     return;
   }
   if (tokens[0] == "declare") {
+    if (tokens.size() > 2 && tokens[1] == "-p") {
+      std::cout << "declare: " << tokens[2] << ": not found" << std::endl;
+    }
     return;
   }
 }
@@ -932,6 +935,9 @@ int main() {
     }
 
     if (tokens[0] == "declare") {
+      if (tokens.size() > 2 && tokens[1] == "-p") {
+        std::cout << "declare: " << tokens[2] << ": not found" << std::endl;
+      }
       restoreRedirects();
       continue;
     }
