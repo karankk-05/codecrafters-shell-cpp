@@ -65,6 +65,15 @@ static std::vector<std::string> splitCommand(const std::string &input) {
           }
         }
         if (input[i] == '$') {
+          if (i + 1 < input.size() && input[i + 1] == '{') {
+            size_t close = input.find('}', i + 2);
+            if (close != std::string::npos) {
+              std::string var_name = input.substr(i + 2, close - i - 2);
+              current += getVariableValue(var_name);
+              i = close + 1;
+              continue;
+            }
+          }
           if (i + 1 < input.size() && (std::isalpha(input[i + 1]) || input[i + 1] == '_')) {
             size_t start = i + 1;
             size_t len = 1;
@@ -95,6 +104,15 @@ static std::vector<std::string> splitCommand(const std::string &input) {
         i++;
       }
     } else if (c == '$') {
+      if (i + 1 < input.size() && input[i + 1] == '{') {
+        size_t close = input.find('}', i + 2);
+        if (close != std::string::npos) {
+          std::string var_name = input.substr(i + 2, close - i - 2);
+          current += getVariableValue(var_name);
+          i = close + 1;
+          continue;
+        }
+      }
       if (i + 1 < input.size() && (std::isalpha(input[i + 1]) || input[i + 1] == '_')) {
         size_t start = i + 1;
         size_t len = 1;
