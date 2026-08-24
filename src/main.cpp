@@ -508,6 +508,15 @@ static void executeBuiltin(const std::vector<std::string> &tokens) {
       }
       return;
     }
+    if (tokens.size() > 2 && tokens[1] == "-w") {
+      std::ofstream outfile(tokens[2]);
+      if (outfile.is_open()) {
+        for (const auto &line : shell_history) {
+          outfile << line << "\n";
+        }
+      }
+      return;
+    }
     size_t limit = shell_history.size();
     if (tokens.size() > 1) {
       try {
@@ -827,6 +836,16 @@ int main() {
               shell_history.push_back(line);
               add_history(line.c_str());
             }
+          }
+        }
+        restoreRedirects();
+        continue;
+      }
+      if (tokens.size() > 2 && tokens[1] == "-w") {
+        std::ofstream outfile(tokens[2]);
+        if (outfile.is_open()) {
+          for (const auto &line : shell_history) {
+            outfile << line << "\n";
           }
         }
         restoreRedirects();
