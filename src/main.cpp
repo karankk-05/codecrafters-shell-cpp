@@ -33,9 +33,17 @@ static std::vector<std::string> splitCommand(const std::string &input) {
       }
       if (i < input.size()) i++;
     } else if (c == '"') {
-      // Double-quoted string: everything is literal (for now)
+      // Double-quoted string: backslash escapes only " \ $ ` and newline
       i++;
       while (i < input.size() && input[i] != '"') {
+        if (input[i] == '\\' && i + 1 < input.size()) {
+          char next = input[i + 1];
+          if (next == '"' || next == '\\' || next == '$' || next == '`' || next == '\n') {
+            current += next;
+            i += 2;
+            continue;
+          }
+        }
         current += input[i];
         i++;
       }
