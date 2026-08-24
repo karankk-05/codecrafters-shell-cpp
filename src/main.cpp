@@ -19,11 +19,32 @@ static std::string trim(const std::string &s) {
 }
 
 static std::vector<std::string> splitCommand(const std::string &input) {
-  std::istringstream stream(input);
   std::vector<std::string> tokens;
-  std::string token;
-  while (stream >> token) {
-    tokens.push_back(token);
+  std::string current;
+  size_t i = 0;
+  while (i < input.size()) {
+    char c = input[i];
+    if (c == '\'') {
+      // Single-quoted string: read until closing quote
+      i++; // skip opening quote
+      while (i < input.size() && input[i] != '\'') {
+        current += input[i];
+        i++;
+      }
+      if (i < input.size()) i++; // skip closing quote
+    } else if (c == ' ' || c == '\t') {
+      if (!current.empty()) {
+        tokens.push_back(current);
+        current.clear();
+      }
+      i++;
+    } else {
+      current += c;
+      i++;
+    }
+  }
+  if (!current.empty()) {
+    tokens.push_back(current);
   }
   return tokens;
 }
