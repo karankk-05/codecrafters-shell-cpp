@@ -493,7 +493,22 @@ static void executeBuiltin(const std::vector<std::string> &tokens) {
     return;
   }
   if (tokens[0] == "history") {
-    for (size_t i = 0; i < shell_history.size(); ++i) {
+    size_t limit = shell_history.size();
+    if (tokens.size() > 1) {
+      try {
+        int val = std::stoi(tokens[1]);
+        if (val > 0) {
+          limit = (size_t)val;
+        }
+      } catch (...) {
+        // ignore
+      }
+    }
+    size_t start_idx = 0;
+    if (shell_history.size() > limit) {
+      start_idx = shell_history.size() - limit;
+    }
+    for (size_t i = start_idx; i < shell_history.size(); ++i) {
       printf("%5d  %s\n", (int)(i + 1), shell_history[i].c_str());
     }
     return;
@@ -787,7 +802,22 @@ int main() {
     }
 
     if (tokens[0] == "history") {
-      for (size_t i = 0; i < shell_history.size(); ++i) {
+      size_t limit = shell_history.size();
+      if (tokens.size() > 1) {
+        try {
+          int val = std::stoi(tokens[1]);
+          if (val > 0) {
+            limit = (size_t)val;
+          }
+        } catch (...) {
+          // ignore
+        }
+      }
+      size_t start_idx = 0;
+      if (shell_history.size() > limit) {
+        start_idx = shell_history.size() - limit;
+      }
+      for (size_t i = start_idx; i < shell_history.size(); ++i) {
         printf("%5d  %s\n", (int)(i + 1), shell_history[i].c_str());
       }
       restoreRedirects();
