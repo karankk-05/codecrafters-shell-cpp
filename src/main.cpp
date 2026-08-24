@@ -121,7 +121,7 @@ int main() {
 
     if (tokens[0] == "type") {
       std::string command = tokens.size() > 1 ? tokens[1] : "";
-      if (command == "type" || command == "echo" || command == "exit" || command == "pwd") {
+      if (command == "type" || command == "echo" || command == "exit" || command == "pwd" || command == "cd") {
         std::cout << command << " is a shell builtin" << std::endl;
       } else {
         std::string resolved = findExecutableInPath(command);
@@ -136,6 +136,17 @@ int main() {
 
     if (tokens[0] == "pwd") {
       std::cout << fs::current_path().string() << std::endl;
+      continue;
+    }
+
+    if (tokens[0] == "cd") {
+      if (tokens.size() > 1) {
+        std::error_code ec;
+        fs::current_path(tokens[1], ec);
+        if (ec) {
+          std::cout << "cd: " << tokens[1] << ": No such file or directory" << std::endl;
+        }
+      }
       continue;
     }
 
