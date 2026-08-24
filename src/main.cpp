@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdlib>
 #include <fcntl.h>
 #include <filesystem>
@@ -180,20 +181,58 @@ static void runExternalCommand(const std::vector<std::string> &tokens, const std
   waitpid(pid, &status, 0);
 }
 
-char *builtin_generator(const char *text, int state) {
-  static size_t list_index, len;
-  // Specifically echo and exit are builtins to complete for this stage
-  std::vector<std::string> builtins = {"echo", "exit"};
+char *command_generator(const char *text, int state) {
+  static size_t list_index;
+  static std::vector<std::string> matches;
+  
   if (!state) {
     list_index = 0;
-    len = strlen(text);
-  }
-  while (list_index < builtins.size()) {
-    std::string name = builtins[list_index];
-    list_index++;
-    if (name.compare(0, len, text) == 0) {
-      return strdup(name.c_str());
+    matches.clear();
+    std::string prefix(text);
+    
+    // Builtins
+    std::vector<std::string> all_builtins = {"echo", "exit", "pwd", "cd", "type"};
+    for (const auto &b : all_builtins) {
+      if (b.compare(0, prefix.size(), prefix) == 0) {
+        matches.push_back(b);
+      }
     }
+    
+    // Executables in PATH
+    const char *pathEnv = std::getenv("PATH");
+    if (pathEnv != nullptr) {
+      std::string path = pathEnv;
+      size_t start = 0;
+      while (start <= path.size()) {
+        size_t end = path.find(':', start);
+        std::string dir = (end == std::string::npos) ? path.substr(start) : path.substr(start, end - start);
+        if (!dir.empty()) {
+          std::error_code ec;
+          if (fs::exists(dir, ec) && fs::is_directory(dir, ec)) {
+            for (const auto &entry : fs::directory_iterator(dir, ec)) {
+              std::string filename = entry.path().filename().string();
+              if (filename.compare(0, prefix.size(), prefix) == 0) {
+                if (fs::is_regular_file(entry.path(), ec)) {
+                  if (access(entry.path().c_str(), X_OK) == 0) {
+                    matches.push_back(filename);
+                  }
+                }
+              }
+            }
+          }
+        }
+        if (end == std::string::npos) break;
+        start = end + 1;
+      }
+    }
+    
+    // Sort and remove duplicates
+    std::sort(matches.begin(), matches.end());
+    matches.erase(std::unique(matches.begin(), matches.end()), matches.end());
+  }
+  
+  if (list_index < matches.size()) {
+    return strdup(matches[list_index++].c_str());
   }
   return nullptr;
 }
@@ -202,7 +241,7 @@ char **shell_completion(const char *text, int start, int end) {
   // Only autocomplete command names at the beginning of the line
   if (start == 0) {
     rl_attempted_completion_over = 1;
-    return rl_completion_matches(text, builtin_generator);
+    return rl_completion_matches(text, command_generator);
   }
   return nullptr;
 }
