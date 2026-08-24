@@ -24,6 +24,20 @@ static std::string trim(const std::string &s) {
   return s.substr(begin, end - begin + 1);
 }
 
+static std::unordered_map<std::string, std::string> shell_variables;
+
+static std::string getVariableValue(const std::string &name) {
+  auto it = shell_variables.find(name);
+  if (it != shell_variables.end()) {
+    return it->second;
+  }
+  const char *env = std::getenv(name.c_str());
+  if (env) {
+    return env;
+  }
+  return "";
+}
+
 static std::vector<std::string> splitCommand(const std::string &input) {
   std::vector<std::string> tokens;
   std::string current;
@@ -50,6 +64,19 @@ static std::vector<std::string> splitCommand(const std::string &input) {
             continue;
           }
         }
+        if (input[i] == '$') {
+          if (i + 1 < input.size() && (std::isalpha(input[i + 1]) || input[i + 1] == '_')) {
+            size_t start = i + 1;
+            size_t len = 1;
+            while (start + len < input.size() && (std::isalnum(input[start + len]) || input[start + len] == '_')) {
+              len++;
+            }
+            std::string var_name = input.substr(start, len);
+            current += getVariableValue(var_name);
+            i = start + len;
+            continue;
+          }
+        }
         current += input[i];
         i++;
       }
@@ -65,6 +92,21 @@ static std::vector<std::string> splitCommand(const std::string &input) {
       i++;
       if (i < input.size()) {
         current += input[i];
+        i++;
+      }
+    } else if (c == '$') {
+      if (i + 1 < input.size() && (std::isalpha(input[i + 1]) || input[i + 1] == '_')) {
+        size_t start = i + 1;
+        size_t len = 1;
+        while (start + len < input.size() && (std::isalnum(input[start + len]) || input[start + len] == '_')) {
+          len++;
+        }
+        std::string var_name = input.substr(start, len);
+        current += getVariableValue(var_name);
+        i = start + len;
+        continue;
+      } else {
+        current += c;
         i++;
       }
     } else {
@@ -253,7 +295,6 @@ static std::vector<Job> jobs_list;
 static std::vector<std::string> shell_history;
 static size_t last_appended_history_idx = 0;
 static std::unordered_map<std::string, std::string> completions;
-static std::unordered_map<std::string, std::string> shell_variables;
 
 static std::string shellQuote(const std::string &str) {
   std::string result = "'";
