@@ -358,6 +358,51 @@ char **shell_completion(const char *text, int start, int end) {
   return nullptr;
 }
 
+static void reapJobs(bool print_running) {
+  if (jobs_list.empty()) {
+    return;
+  }
+
+  // Update status of all jobs
+  for (auto &job : jobs_list) {
+    if (job.status == "Running") {
+      int status = 0;
+      pid_t res = waitpid(job.pid, &status, WNOHANG);
+      if (res > 0) {
+        job.status = "Done";
+      }
+    }
+  }
+
+  // Print jobs
+  std::vector<Job> active_jobs;
+  for (size_t i = 0; i < jobs_list.size(); ++i) {
+    bool should_print = print_running || (jobs_list[i].status == "Done");
+    if (should_print) {
+      char marker = ' ';
+      if (i == jobs_list.size() - 1) {
+        marker = '+';
+      } else if (i == jobs_list.size() - 2) {
+        marker = '-';
+      }
+      std::string status_field = jobs_list[i].status;
+      if (status_field.size() < 24) {
+        status_field.append(24 - status_field.size(), ' ');
+      }
+      std::string cmd = jobs_list[i].command;
+      if (jobs_list[i].status == "Running") {
+        cmd += " &";
+      }
+      std::cout << "[" << jobs_list[i].job_id << "]" << marker << "  " << status_field << cmd << std::endl;
+    }
+    
+    if (jobs_list[i].status == "Running") {
+      active_jobs.push_back(jobs_list[i]);
+    }
+  }
+  jobs_list = active_jobs;
+}
+
 int main() {
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
@@ -367,6 +412,7 @@ int main() {
   int next_job_id = 1;
 
   while (true) {
+    reapJobs(false);
     char *line = readline("$ ");
     if (line == nullptr) {
       break;
@@ -494,43 +540,7 @@ int main() {
     }
 
     if (tokens[0] == "jobs") {
-      // First, update status of all jobs
-      for (auto &job : jobs_list) {
-        if (job.status == "Running") {
-          int status = 0;
-          pid_t res = waitpid(job.pid, &status, WNOHANG);
-          if (res > 0) {
-            job.status = "Done";
-          }
-        }
-      }
-
-      // Then, print and filter out "Done" jobs
-      std::vector<Job> active_jobs;
-      for (size_t i = 0; i < jobs_list.size(); ++i) {
-        char marker = ' ';
-        if (i == jobs_list.size() - 1) {
-          marker = '+';
-        } else if (i == jobs_list.size() - 2) {
-          marker = '-';
-        }
-        std::string status_field = jobs_list[i].status;
-        if (status_field.size() < 24) {
-          status_field.append(24 - status_field.size(), ' ');
-        }
-        
-        std::string cmd = jobs_list[i].command;
-        if (jobs_list[i].status == "Running") {
-          cmd += " &";
-        }
-        
-        std::cout << "[" << jobs_list[i].job_id << "]" << marker << "  " << status_field << cmd << std::endl;
-        
-        if (jobs_list[i].status == "Running") {
-          active_jobs.push_back(jobs_list[i]);
-        }
-      }
-      jobs_list = active_jobs;
+      reapJobs(true);
       restoreRedirects();
       continue;
     }
