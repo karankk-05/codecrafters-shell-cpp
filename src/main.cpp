@@ -195,7 +195,7 @@ char *command_generator(const char *text, int state) {
     std::string prefix(text);
     
     // Builtins
-    std::vector<std::string> all_builtins = {"echo", "exit", "pwd", "cd", "type", "complete", "jobs"};
+    std::vector<std::string> all_builtins = {"echo", "exit", "pwd", "cd", "type", "complete", "jobs", "history"};
     for (const auto &b : all_builtins) {
       if (b.compare(0, prefix.size(), prefix) == 0) {
         matches.push_back(b);
@@ -417,7 +417,7 @@ static int getNextJobId() {
 }
 
 static bool isBuiltin(const std::string &cmd) {
-  return cmd == "echo" || cmd == "exit" || cmd == "pwd" || cmd == "cd" || cmd == "type" || cmd == "complete" || cmd == "jobs";
+  return cmd == "echo" || cmd == "exit" || cmd == "pwd" || cmd == "cd" || cmd == "type" || cmd == "complete" || cmd == "jobs" || cmd == "history";
 }
 
 static void executeBuiltin(const std::vector<std::string> &tokens) {
@@ -437,7 +437,7 @@ static void executeBuiltin(const std::vector<std::string> &tokens) {
   }
   if (tokens[0] == "type") {
     std::string command = tokens.size() > 1 ? tokens[1] : "";
-    if (command == "type" || command == "echo" || command == "exit" || command == "pwd" || command == "cd" || command == "complete" || command == "jobs") {
+    if (command == "type" || command == "echo" || command == "exit" || command == "pwd" || command == "cd" || command == "complete" || command == "jobs" || command == "history") {
       std::cout << command << " is a shell builtin" << std::endl;
     } else {
       std::string resolved = findExecutableInPath(command);
@@ -489,6 +489,19 @@ static void executeBuiltin(const std::vector<std::string> &tokens) {
   }
   if (tokens[0] == "jobs") {
     reapJobs(true);
+    return;
+  }
+  if (tokens[0] == "history") {
+    HISTORY_STATE *state = history_get_history_state();
+    if (state) {
+      for (int i = 0; i < state->length; ++i) {
+        HIST_ENTRY *entry = history_get(i + state->offset);
+        if (entry) {
+          printf("%5d  %s\n", i + 1, entry->line);
+        }
+      }
+      free(state);
+    }
     return;
   }
 }
@@ -651,6 +664,8 @@ int main() {
       continue;
     }
 
+    add_history(input.c_str());
+
     auto pipeline_stages = splitPipeline(input);
     if (pipeline_stages.size() > 1) {
       runPipeline(pipeline_stages, input);
@@ -712,7 +727,7 @@ int main() {
 
     if (tokens[0] == "type") {
       std::string command = tokens.size() > 1 ? tokens[1] : "";
-      if (command == "type" || command == "echo" || command == "exit" || command == "pwd" || command == "cd" || command == "complete" || command == "jobs") {
+      if (command == "type" || command == "echo" || command == "exit" || command == "pwd" || command == "cd" || command == "complete" || command == "jobs" || command == "history") {
         std::cout << command << " is a shell builtin" << std::endl;
       } else {
         std::string resolved = findExecutableInPath(command);
@@ -772,6 +787,21 @@ int main() {
 
     if (tokens[0] == "jobs") {
       reapJobs(true);
+      restoreRedirects();
+      continue;
+    }
+
+    if (tokens[0] == "history") {
+      HISTORY_STATE *state = history_get_history_state();
+      if (state) {
+        for (int i = 0; i < state->length; ++i) {
+          HIST_ENTRY *entry = history_get(i + state->offset);
+          if (entry) {
+            printf("%5d  %s\n", i + 1, entry->line);
+          }
+        }
+        free(state);
+      }
       restoreRedirects();
       continue;
     }
