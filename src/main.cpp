@@ -240,6 +240,19 @@ char *command_generator(const char *text, int state) {
 
 static std::unordered_map<std::string, std::string> completions;
 
+static std::string shellQuote(const std::string &str) {
+  std::string result = "'";
+  for (char c : str) {
+    if (c == '\'') {
+      result += "'\\''";
+    } else {
+      result += c;
+    }
+  }
+  result += "'";
+  return result;
+}
+
 static std::string getFirstWord(const std::string &line) {
   std::string word;
   size_t first_space = line.find_first_of(" \t");
@@ -254,9 +267,30 @@ static std::string getFirstWord(const std::string &line) {
   return word;
 }
 
-static std::vector<std::string> runCompleterScript(const std::string &script_path) {
+static std::string getPrevWord(const std::string &line, int start) {
+  std::string prefix = line.substr(0, start);
+  size_t last_non_space = prefix.find_last_not_of(" \t");
+  if (last_non_space == std::string::npos) {
+    return "";
+  }
+  prefix = prefix.substr(0, last_non_space + 1);
+  size_t last_space = prefix.find_last_of(" \t");
+  std::string prev_word;
+  if (last_space == std::string::npos) {
+    prev_word = prefix;
+  } else {
+    prev_word = prefix.substr(last_space + 1);
+  }
+  if (prev_word.size() >= 2 && ((prev_word.front() == '\'' && prev_word.back() == '\'') || (prev_word.front() == '"' && prev_word.back() == '"'))) {
+    prev_word = prev_word.substr(1, prev_word.size() - 2);
+  }
+  return prev_word;
+}
+
+static std::vector<std::string> runCompleterScript(const std::string &script_path, const std::string &cmd, const std::string &word, const std::string &prev_word) {
   std::vector<std::string> candidates;
-  FILE *pipe = popen(script_path.c_str(), "r");
+  std::string run_cmd = shellQuote(script_path) + " " + shellQuote(cmd) + " " + shellQuote(word) + " " + shellQuote(prev_word);
+  FILE *pipe = popen(run_cmd.c_str(), "r");
   if (!pipe) {
     return candidates;
   }
@@ -297,11 +331,12 @@ char **shell_completion(const char *text, int start, int end) {
     auto it = completions.find(cmd);
     if (it != completions.end()) {
       rl_attempted_completion_over = 1;
-      std::vector<std::string> raw_candidates = runCompleterScript(it->second);
+      std::string word(text);
+      std::string prev_word = getPrevWord(line_str, start);
+      std::vector<std::string> raw_candidates = runCompleterScript(it->second, cmd, word, prev_word);
       std::vector<std::string> filtered;
-      std::string prefix(text);
       for (const auto &c : raw_candidates) {
-        if (c.compare(0, prefix.size(), prefix) == 0) {
+        if (c.compare(0, word.size(), word) == 0) {
           filtered.push_back(c);
         }
       }
