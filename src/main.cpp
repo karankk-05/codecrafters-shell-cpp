@@ -416,6 +416,83 @@ static int getNextJobId() {
   return max_id + 1;
 }
 
+static bool isBuiltin(const std::string &cmd) {
+  return cmd == "echo" || cmd == "exit" || cmd == "pwd" || cmd == "cd" || cmd == "type" || cmd == "complete" || cmd == "jobs";
+}
+
+static void executeBuiltin(const std::vector<std::string> &tokens) {
+  if (tokens[0] == "exit") {
+    _exit(0);
+  }
+  if (tokens[0] == "echo") {
+    std::string output;
+    for (size_t i = 1; i < tokens.size(); ++i) {
+      if (i > 1) {
+        output += " ";
+      }
+      output += tokens[i];
+    }
+    std::cout << output << std::endl;
+    return;
+  }
+  if (tokens[0] == "type") {
+    std::string command = tokens.size() > 1 ? tokens[1] : "";
+    if (command == "type" || command == "echo" || command == "exit" || command == "pwd" || command == "cd" || command == "complete" || command == "jobs") {
+      std::cout << command << " is a shell builtin" << std::endl;
+    } else {
+      std::string resolved = findExecutableInPath(command);
+      if (!resolved.empty()) {
+        std::cout << command << " is " << resolved << std::endl;
+      } else {
+        std::cout << command << ": not found" << std::endl;
+      }
+    }
+    return;
+  }
+  if (tokens[0] == "pwd") {
+    std::cout << fs::current_path().string() << std::endl;
+    return;
+  }
+  if (tokens[0] == "cd") {
+    if (tokens.size() > 1) {
+      std::string target = tokens[1];
+      if (target == "~") {
+        const char *home = std::getenv("HOME");
+        if (home) {
+          target = home;
+        }
+      }
+      std::error_code ec;
+      fs::current_path(target, ec);
+      if (ec) {
+        std::cout << "cd: " << tokens[1] << ": No such file or directory" << std::endl;
+      }
+    }
+    return;
+  }
+  if (tokens[0] == "complete") {
+    if (tokens.size() > 2) {
+      if (tokens[1] == "-p") {
+        auto it = completions.find(tokens[2]);
+        if (it != completions.end()) {
+          std::cout << "complete -C '" << it->second << "' " << tokens[2] << std::endl;
+        } else {
+          std::cout << "complete: " << tokens[2] << ": no completion specification" << std::endl;
+        }
+      } else if (tokens[1] == "-C" && tokens.size() > 3) {
+        completions[tokens[3]] = tokens[2];
+      } else if (tokens[1] == "-r") {
+        completions.erase(tokens[2]);
+      }
+    }
+    return;
+  }
+  if (tokens[0] == "jobs") {
+    reapJobs(true);
+    return;
+  }
+}
+
 static std::vector<std::string> splitPipeline(const std::string &input) {
   std::vector<std::string> stages;
   std::string current;
@@ -503,6 +580,11 @@ static void runPipeline(const std::vector<std::string> &stages_raw, const std::s
           dup2(fd, r.fd);
           close(fd);
         }
+      }
+
+      if (isBuiltin(parsed_stages[i][0])) {
+        executeBuiltin(parsed_stages[i]);
+        _exit(0);
       }
 
       std::vector<char *> argv;
