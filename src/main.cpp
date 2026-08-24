@@ -251,6 +251,7 @@ struct Job {
 
 static std::vector<Job> jobs_list;
 static std::vector<std::string> shell_history;
+static size_t last_appended_history_idx = 0;
 static std::unordered_map<std::string, std::string> completions;
 
 static std::string shellQuote(const std::string &str) {
@@ -506,6 +507,7 @@ static void executeBuiltin(const std::vector<std::string> &tokens) {
           }
         }
       }
+      last_appended_history_idx = shell_history.size();
       return;
     }
     if (tokens.size() > 2 && tokens[1] == "-w") {
@@ -515,6 +517,16 @@ static void executeBuiltin(const std::vector<std::string> &tokens) {
           outfile << line << "\n";
         }
       }
+      return;
+    }
+    if (tokens.size() > 2 && tokens[1] == "-a") {
+      std::ofstream outfile(tokens[2], std::ios_base::app);
+      if (outfile.is_open()) {
+        for (size_t i = last_appended_history_idx; i < shell_history.size(); ++i) {
+          outfile << shell_history[i] << "\n";
+        }
+      }
+      last_appended_history_idx = shell_history.size();
       return;
     }
     size_t limit = shell_history.size();
@@ -838,6 +850,7 @@ int main() {
             }
           }
         }
+        last_appended_history_idx = shell_history.size();
         restoreRedirects();
         continue;
       }
@@ -848,6 +861,17 @@ int main() {
             outfile << line << "\n";
           }
         }
+        restoreRedirects();
+        continue;
+      }
+      if (tokens.size() > 2 && tokens[1] == "-a") {
+        std::ofstream outfile(tokens[2], std::ios_base::app);
+        if (outfile.is_open()) {
+          for (size_t i = last_appended_history_idx; i < shell_history.size(); ++i) {
+            outfile << shell_history[i] << "\n";
+          }
+        }
+        last_appended_history_idx = shell_history.size();
         restoreRedirects();
         continue;
       }
