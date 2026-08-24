@@ -2,6 +2,8 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <iostream>
+#include <readline/readline.h>
+#include <readline/history.h>
 #include <sstream>
 #include <string>
 #include <sys/wait.h>
@@ -178,14 +180,47 @@ static void runExternalCommand(const std::vector<std::string> &tokens, const std
   waitpid(pid, &status, 0);
 }
 
+char *builtin_generator(const char *text, int state) {
+  static size_t list_index, len;
+  // Specifically echo and exit are builtins to complete for this stage
+  std::vector<std::string> builtins = {"echo", "exit"};
+  if (!state) {
+    list_index = 0;
+    len = strlen(text);
+  }
+  while (list_index < builtins.size()) {
+    std::string name = builtins[list_index];
+    list_index++;
+    if (name.compare(0, len, text) == 0) {
+      return strdup(name.c_str());
+    }
+  }
+  return nullptr;
+}
+
+char **shell_completion(const char *text, int start, int end) {
+  // Only autocomplete command names at the beginning of the line
+  if (start == 0) {
+    rl_attempted_completion_over = 1;
+    return rl_completion_matches(text, builtin_generator);
+  }
+  return nullptr;
+}
+
 int main() {
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
 
+  rl_attempted_completion_function = shell_completion;
+
   while (true) {
-    std::cout << "$ ";
-    std::string input;
-    std::getline(std::cin, input);
+    char *line = readline("$ ");
+    if (line == nullptr) {
+      break;
+    }
+    std::string input(line);
+    free(line);
+    
     input = trim(input);
 
     if (input.empty()) {
