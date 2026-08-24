@@ -191,7 +191,7 @@ char *command_generator(const char *text, int state) {
     std::string prefix(text);
     
     // Builtins
-    std::vector<std::string> all_builtins = {"echo", "exit", "pwd", "cd", "type"};
+    std::vector<std::string> all_builtins = {"echo", "exit", "pwd", "cd", "type", "complete"};
     for (const auto &b : all_builtins) {
       if (b.compare(0, prefix.size(), prefix) == 0) {
         matches.push_back(b);
@@ -321,7 +321,7 @@ int main() {
 
     if (tokens[0] == "type") {
       std::string command = tokens.size() > 1 ? tokens[1] : "";
-      if (command == "type" || command == "echo" || command == "exit" || command == "pwd" || command == "cd") {
+      if (command == "type" || command == "echo" || command == "exit" || command == "pwd" || command == "cd" || command == "complete") {
         std::cout << command << " is a shell builtin" << std::endl;
       } else {
         std::string resolved = findExecutableInPath(command);
@@ -356,6 +356,12 @@ int main() {
           std::cout << "cd: " << tokens[1] << ": No such file or directory" << std::endl;
         }
       }
+      restoreRedirects();
+      continue;
+    }
+
+    if (tokens[0] == "complete") {
+      // Placeholder for programmable completions: do nothing for now
       restoreRedirects();
       continue;
     }
